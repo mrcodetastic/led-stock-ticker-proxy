@@ -4,20 +4,16 @@ import json
 import logging
 import operator
 import os
-from datetime import datetime
 from io import BytesIO
 from typing import Tuple, List
 
 import requests
 from PIL import Image, ImageFont, UnidentifiedImageError
 from rgbmatrix import RGBMatrixOptions
-from pytz import timezone
 from requests import Timeout, RequestException, ConnectionError
 
 import constants
-from util.market_status import MarketStatus
 from util.color import Color
-from util.holiday_calendar import MarketHolidayCalendar
 from util.position import Position
 from util.retry import retry
 
@@ -199,68 +195,34 @@ def build_forex_img(urls: List[str], size: Tuple[int, int]) -> Image:
 
 
 @retry((Timeout, ConnectionError), total_tries=3)
-def convert_currency(currency_from: str, currency_to: str, amount: float) -> float:
+def fetch_exchange_rate(currency_to: str) -> float:
     """
-    Convert a value from one currency to another.
-    :param currency_from: (str) Currency to convert from
+    Fetch
     :param currency_to: (str) Currency to convert to
-    :param amount: (float) Amount to convert
     :return: result: (float) Converted amount
-    :exception TypeError: If incorrect data type is provided as an argument
     :exception Timeout: If the request timed out
     :exception ConnectionError: If a connection error occurred
     :exception RequestException: If an ambiguous exception that occurred
     """
     try:
-        url = constants.CURRENCY_EXCHANGE_URL.format(currency_from, currency_to, amount)
-        response = requests.get(url).json()
-        return float(response['result'])
+        response = requests.get(constants.CURRENCY_EXCHANGE_URL).json()
+        return float(response['rates'][currency_to])
+    except RequestException:
+        logging.error('Encountered an unknown error while fetching exchange rates.')
+        return 1
+
+
+def convert_currency(exchange_rate: float, amount: float) -> float:
+    """
+    Convert a value from one currency to another using given rate
+    :param exchange_rate: value to use for conversion
+    :param amount: amount to convert
+    :exception TypeError: If incorrect data type is provided as an argument
+    """
+    try:
+        return exchange_rate * amount
     except TypeError:
         return 0.0
-    except RequestException:
-        logging.error('Encountered an unknown error while converting currency. Returning original value.')
-        return amount
-
-
-def market_status() -> MarketStatus:
-    """
-    Determine if the stock market is closed.
-    :return: market_closed: (MarketStatus)
-    """
-    return MarketStatus.CLOSED if holiday() or after_hours() else MarketStatus.OPEN
-
-
-def after_hours() -> bool:
-    """
-    Determine if current time is after hours.
-    i.e. Current time is not between 09:30 AM and 04:00 PM EST (Regular stock market hours), or it is a weekend.
-    :return: after_hours: (bool)
-    """
-    current_time = datetime.now(timezone('US/Eastern'))  # Current time in EST
-    open_market = current_time.replace(hour=9, minute=30, second=0, microsecond=0)  # 09:30 AM EST
-    close_market = current_time.replace(hour=16, minute=0, second=0, microsecond=0)  # 04:00 PM EST
-    return current_time < open_market or current_time > close_market or weekend()
-
-
-def weekend() -> bool:
-    """
-    Determine if today is a weekend day.
-    :return: weekend: (bool)
-    """
-    week_day_no = datetime.today().weekday()
-    return week_day_no > 4  # 5 Sat, 6 Sun
-
-
-def holiday() -> bool:
-    """
-    Determine if today is an NYSE-observed US federal holiday.
-    :return: holiday: (bool)
-    """
-    today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-    sdt = today.replace(month=1, day=1)  # Year start-date
-    edt = today.replace(month=12, day=31)  # Year end-date
-    holidays = MarketHolidayCalendar().holidays(start=sdt, end=edt).to_pydatetime()
-    return today in holidays
 
 
 def args() -> argparse.Namespace:

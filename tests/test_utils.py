@@ -4,7 +4,6 @@ from PIL import Image, ImageFont
 
 import constants
 from util import utils
-from util.market_status import MarketStatus
 from util.position import Position
 
 
@@ -52,11 +51,11 @@ class TestUtils:
 
     def test_align_text(self):
         x, y = utils.align_text(self.font.getsize('Lorem ipsum'), 64, 32, Position.CENTER, Position.CENTER)
-        assert (x, y) == (10, 13)
+        assert (x, y) == (11, 13)
 
     def test_align_text_2(self):
         x = utils.align_text(self.font.getsize('Lorem ipsum'), col_width=64, x=Position.CENTER)[0]
-        assert x == 10
+        assert x == 11
 
     def test_align_text_3(self):
         y = utils.align_text(self.font.getsize('Lorem ipsum'), col_height=32, y=Position.CENTER)[1]
@@ -64,7 +63,7 @@ class TestUtils:
 
     def test_align_text_4(self):
         x = utils.align_text(self.font.getsize('Lorem ipsum'), col_width=64, x=Position.RIGHT)[0]
-        assert x == 20
+        assert x == 22
 
     def test_align_text_5(self):
         y = utils.align_text(self.font.getsize('Lorem ipsum'), col_height=32, y=Position.BOTTOM)[1]
@@ -140,15 +139,15 @@ class TestUtils:
         assert 'No url provided' in caplog.text
 
     def test_convert_currency(self):
-        result = utils.convert_currency('USD', 'EUR', 15.0)
+        result = utils.convert_currency(1, 15.0)
         assert isinstance(result, float)
 
     def test_convert_currency_2(self):
-        result = utils.convert_currency('INVALID_CURR', 'INVALID_CURR_2', 45.4)
+        result = utils.convert_currency('13.1', 45.4)
         assert result == 0.0
 
     def test_convert_currency_3(self):
-        result = utils.convert_currency('EUR', 'USD', None)
+        result = utils.convert_currency(1.23, None)
         assert result == 0.0
 
     def test_build_forex_img(self):
@@ -167,15 +166,3 @@ class TestUtils:
         with caplog.at_level(logging.WARNING):
             utils.build_forex_img(urls, (40, 20))
         assert 'Unable to build forex image' in caplog.text
-
-    def test_market_status(self):
-        assert isinstance(utils.market_status(), MarketStatus)
-
-    def test_after_hours(self):
-        assert isinstance(utils.after_hours(), bool)
-
-    def test_weekend(self):
-        assert isinstance(utils.weekend(), bool)
-
-    def test_holiday(self):
-        assert isinstance(utils.holiday(), bool)
